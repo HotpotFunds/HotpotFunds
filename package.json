@@ -1,0 +1,53 @@
+{
+  "name": "hotpotfunds",
+  "homepage": "https://hotpotfunds.org",
+  "version": "1.0.0",
+  "description": "HotPot Funds (火锅基金) , 是Defi领域的流动性收益基金项目.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ww-gh/HotPotFunds"
+  },
+  "keywords": [
+    "hotpotfunds",
+    "hotpot",
+    "fund",
+    "ethereum"
+  ],
+  "files": [
+    "contracts",
+    "build"
+  ],
+  "engines": {
+    "node": ">=10"
+  },
+  "dependencies": {
+    "@uniswap/lib": "1.1.1",
+    "@uniswap/v2-core": "1.0.0",
+    "@uniswap/v2-periphery": "^1.1.0-beta.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.2.6",
+    "@types/mocha": "^5.2.7",
+    "chai": "^4.2.0",
+    "chai-shallow-deep-equal":"^1.4.6",
+    "ethereum-waffle": "^2.4.1",
+    "ethereumjs-util": "^6.2.0",
+    "mocha": "^6.2.2",
+    "prettier": "^1.19.1",
+    "rimraf": "^3.0.0",
+    "solc": "0.5.16",
+    "ts-node": "^8.5.4",
+    "typescript": "^3.7.3"
+  },
+  "scripts": {
+    "lint": "yarn prettier ./test/*.ts --check",
+    "lint:fix": "yarn prettier ./test/*.ts --write",
+    "clean": "rimraf ./build/",
+    "precompile": "yarn clean",
+    "compile": "waffle .waffle.json",
+    "pretest": "yarn compile",
+    "test": "mocha",
+    "prepublishOnly": "yarn test"
+  },
+  "license": "GPL-3.0-or-later"
+}

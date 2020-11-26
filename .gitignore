@@ -1,0 +1,23 @@
+# My Custom
+bin/
+
+# node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# artifacts
+contracts/artifacts/
+contracts/interfaces/artifacts/
+contracts/libraries/artifacts/
+contracts/tests/artifacts/
+build/
+
+# Editor directories and files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
