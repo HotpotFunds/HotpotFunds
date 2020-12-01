@@ -17,7 +17,7 @@ contract HotPotControllerMock is ReentrancyGuard {
     address public hotpot;
     address public manager;
     address public governance;
-    mapping (address => bool) public trustedTokens;
+    mapping (address => bool) public trustedToken;
 
     event ChangeTrustedToken(address indexed token, bool isTrusted);
 
@@ -68,7 +68,7 @@ contract HotPotControllerMock is ReentrancyGuard {
     }
 
     function addPool(address fund, address token, uint proportion) external onlyManager{
-        require(trustedTokens[token], "The token is not trusted.");
+        require(trustedToken[token], "The token is not trusted.");
         IHotPotFund(fund).addPool(token, proportion);
     }
 
@@ -122,7 +122,7 @@ contract HotPotControllerMock is ReentrancyGuard {
     }
 
     function setTrustedToken(address token, bool isTrusted) external onlyGovernance {
-        trustedTokens[token] = isTrusted;
+        trustedToken[token] = isTrusted;
         emit ChangeTrustedToken(token, isTrusted);
     }
 }
