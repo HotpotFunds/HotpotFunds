@@ -6,7 +6,7 @@ import {createFixtureLoader, MockProvider, solidity} from 'ethereum-waffle'
 
 import {expandTo18Decimals, expandTo6Decimals, printGasLimit, sleep} from './shared/utilities'
 
-import {getPair, HotPotFixture, INIT_STAKE_REWARDS_AMOUNT, printPoolsStatus, readStatus} from './shared/fixtures'
+import {getPair, HotPotFixture, INIT_STAKE_REWARDS_AMOUNT, printPairsStatus, readStatus} from './shared/fixtures'
 
 chai.use(require('chai-shallow-deep-equal'));
 chai.use(solidity);
@@ -32,7 +32,7 @@ describe('HotPotFund', () => {
     let fixture: HotPotFixture;
     let controller: Contract;
     let tokenHotPot: Contract;
-    let pools: Array<Contract>;
+    let tokens: Array<Contract>;
 
     let hotPotFund: Contract;
     let investToken: Contract;
@@ -52,9 +52,9 @@ describe('HotPotFund', () => {
         hotPotFund = (<any>fixture)["hotPotFund" + TOKEN_TYPE];
         investToken = (<any>fixture)["token" + TOKEN_TYPE];
 
-        pools = [fixture.tokenDAI, fixture.tokenUSDC, fixture.tokenUSDT, fixture.tokenWETH, fixture.tokenHotPot];
-        const index = pools.findIndex(value => value.address == investToken.address);
-        pools.splice(index, 1);
+        tokens = [fixture.tokenDAI, fixture.tokenUSDC, fixture.tokenUSDT, fixture.tokenWETH, fixture.tokenHotPot];
+        const index = tokens.findIndex(value => value.address == investToken.address);
+        tokens.splice(index, 1);
 
         INIT_DEPOSIT_AMOUNT = await investToken.decimals() == 18 ? INIT_DEPOSIT_AMOUNT_18 : INIT_DEPOSIT_AMOUNT_6;
 
@@ -63,13 +63,13 @@ describe('HotPotFund', () => {
             await investToken._mint_for_testing(trader.address, INIT_DEPOSIT_AMOUNT);
         }
 
-        //UNI DAI-ETH minting
+        //UNI DAI-ETH mining
         await fixture.tokenUNI.transfer(fixture.uniStakingRewardsDAI.address, INIT_STAKE_REWARDS_AMOUNT);
         await fixture.uniStakingRewardsDAI.notifyRewardAmount(INIT_STAKE_REWARDS_AMOUNT);
-        //UNI USDC-ETH minting
+        //UNI USDC-ETH mining
         await fixture.tokenUNI.transfer(fixture.uniStakingRewardsUSDC.address, INIT_STAKE_REWARDS_AMOUNT);
         await fixture.uniStakingRewardsUSDC.notifyRewardAmount(INIT_STAKE_REWARDS_AMOUNT);
-        //UNI USDT-ETH minting
+        //UNI USDT-ETH mining
         await fixture.tokenUNI.transfer(fixture.uniStakingRewardsUSDT.address, INIT_STAKE_REWARDS_AMOUNT);
         await fixture.uniStakingRewardsUSDT.notifyRewardAmount(INIT_STAKE_REWARDS_AMOUNT);
     });
@@ -80,7 +80,7 @@ describe('HotPotFund', () => {
         });
     });
 
-    //token, controller, totalInvestment, poolsLength, curve_tokenID, paths
+    //token, controller, totalInvestment, pairsLength, curve_tokenID, paths
     it('readInitStatus', readStatus(() => {
             const target = hotPotFund;
             const caseData = {
@@ -93,7 +93,7 @@ describe('HotPotFund', () => {
                 totalInvestment: {
                     value: 0
                 },
-                // pools: {
+                // pairs: {
                 //     symbol: "shallowDeepEqual",
                 //     args: [0],
                 //     value: {
@@ -101,7 +101,7 @@ describe('HotPotFund', () => {
                 //         proportion: new BigNumber(0)
                 //     }
                 // },
-                poolsLength: {
+                pairsLength: {
                     value: 0
                 },
                 curve_tokenID: [
@@ -132,95 +132,95 @@ describe('HotPotFund', () => {
         }
     ));
 
-    it('setUNIMintingPool', async () => {
+    it('setUNIPool', async () => {
         //Non-Controller operation
-        await expect(hotPotFund.setMintingUNIPool(await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
+        await expect(hotPotFund.setUNIPool(await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
             .to.be.revertedWith("Only called by Controller.");
 
         if (investToken.address != fixture.tokenWETH.address) {
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, investToken.address), (fixture as any)["uniStakingRewards" + TOKEN_TYPE].address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, investToken.address), (fixture as any)["uniStakingRewards" + TOKEN_TYPE].address))
                 .to.not.be.reverted;
         } else {
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenDAI.address), fixture.uniStakingRewardsDAI.address))
                 .to.not.be.reverted;
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDC.address), fixture.uniStakingRewardsUSDC.address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDC.address), fixture.uniStakingRewardsUSDC.address))
                 .to.not.be.reverted;
-            await expect(controller.connect(governance).setMintingUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDT.address), fixture.uniStakingRewardsUSDT.address))
+            await expect(controller.connect(governance).setUNIPool(hotPotFund.address, await fixture.factory.getPair(fixture.tokenWETH.address, fixture.tokenUSDT.address), fixture.uniStakingRewardsUSDT.address))
                 .to.not.be.reverted;
         }
     });
 
-    function addPool(builder: () => any) {
+    function addPair(builder: () => any) {
         return async () => {
             const {tokenArr} = await builder();
             //not trusted token
-            await expect(controller.addPool(hotPotFund.address, hotPotFund.address, 100))
+            await expect(controller.addPair(hotPotFund.address, hotPotFund.address, [100]))
                 .to.be.revertedWith('The token is not trusted.');
             //error pair
-            await expect(controller.addPool(hotPotFund.address, investToken.address, 100))
+            await expect(controller.addPair(hotPotFund.address, investToken.address, [100]))
                 .to.be.revertedWith('Pair not exist.');
             //init proportion < 100
-            await expect(controller.addPool(hotPotFund.address, tokenArr[0].address, 10))
+            await expect(controller.addPair(hotPotFund.address, tokenArr[0].address, [10]))
                 .to.be.revertedWith('Error proportion.');
             //init proportion > 100
-            await expect(controller.addPool(hotPotFund.address, tokenArr[1].address, 101))
+            await expect(controller.addPair(hotPotFund.address, tokenArr[1].address, [101]))
                 .to.be.revertedWith('Error proportion.');
 
             //Non-Controller operation
-            await expect(hotPotFund.addPool(tokenArr[0].address, 100))
+            await expect(hotPotFund.addPair(tokenArr[0].address, [100]))
                 .to.be.revertedWith("Only called by Controller.");
 
             //init proportion USDC=100
-            let transaction = await controller.addPool(hotPotFund.address, tokenArr[0].address, 100);
+            let transaction = await controller.addPair(hotPotFund.address, tokenArr[0].address, [100]);
             printGasLimit(transaction, "first-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
-            if (pools.length == 1) return;
+            if (tokens.length == 1) return;
 
             //proportion USDC=50 USDT=50
-            transaction = await controller.addPool(hotPotFund.address, tokenArr[1].address, 50);
+            transaction = await controller.addPair(hotPotFund.address, tokenArr[1].address, [50, 50]);
             printGasLimit(transaction, "second-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
-            if (pools.length == 2) return;
+            if (tokens.length == 2) return;
 
             //proportion USDC=25 USDT=25 WETH=50
-            transaction = await controller.addPool(hotPotFund.address, tokenArr[2].address, 50);
+            transaction = await controller.addPair(hotPotFund.address, tokenArr[2].address, [25, 25, 50]);
             printGasLimit(transaction, "third-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
-            if (pools.length == 3) return;
+            if (tokens.length == 3) return;
 
             //proportion USDC=12.5 USDT=12.5 WETH=12.5, HotPot=50 reverted
-            await expect(controller.addPool(hotPotFund.address, tokenArr[3].address, 50))
+            await expect(controller.addPair(hotPotFund.address, tokenArr[3].address, [12, 12, 12, 50]))
                 .to.be.revertedWith('Error proportion.');
 
-            //poolsLength = 3
-            await expect(await hotPotFund.poolsLength()).to.eq(3);
+            //pairsLength = 3
+            await expect(await hotPotFund.pairsLength()).to.eq(3);
             //0:USDC=25、 1:USDT=25、2:WETH=50
             // @ts-ignore
-            await expect(await hotPotFund.pools(0)).to.shallowDeepEqual({
+            await expect(await hotPotFund.pairs(0)).to.shallowDeepEqual({
                 token: tokenArr[0].address,
                 proportion: 25
             });
             // @ts-ignore
-            await expect(await hotPotFund.pools(1)).to.shallowDeepEqual({
+            await expect(await hotPotFund.pairs(1)).to.shallowDeepEqual({
                 token: tokenArr[1].address,
                 proportion: 25
             });
             // @ts-ignore
-            await expect(await hotPotFund.pools(2)).to.shallowDeepEqual({
+            await expect(await hotPotFund.pairs(2)).to.shallowDeepEqual({
                 token: tokenArr[2].address,
                 proportion: 50
             });
         };
     }
 
-    it('invest: fail before adding pool', async () => {
+    it('invest: fail before adding pair', async () => {
         await expect(controller.connect(manager).invest(hotPotFund.address, INIT_DEPOSIT_AMOUNT))
-            .to.be.revertedWith("Pools is empty.");
+            .to.be.revertedWith("Pairs is empty.");
     });
 
-    it("addPool: init 3 pool", addPool(() => {
+    it("addPair: init 3 pair", addPair(() => {
         return {
-            tokenArr: pools
+            tokenArr: tokens
         }
     }));
 
@@ -278,12 +278,12 @@ describe('HotPotFund', () => {
         return {depositAmount};
     }));
 
-    it('stakeMintingUNIAll: after deposit and before invest', async () => {
+    it('mineUNIAll: after deposit and before invest', async () => {
         //Non-Controller operation
-        await expect(hotPotFund.stakeMintingUNIAll())
+        await expect(hotPotFund.mineUNIAll())
             .to.be.revertedWith("Only called by Controller.");
 
-        await expect(controller.stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.mineUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         await expect(await hotPotFund.debtOf(depositor.address))
@@ -316,8 +316,8 @@ describe('HotPotFund', () => {
     async function calSumRemoveAmount(shareAmount: BigNumber, isCurve: boolean = false) {
         const totalSupply = await hotPotFund.totalSupply();
         let sumRemoveAmount = (await investToken.balanceOf(hotPotFund.address)).mul(shareAmount).div(totalSupply);
-        for (let i = 0; i < pools.length - 1; i++) {
-            let tokenAddr = pools[i].address;
+        for (let i = 0; i < tokens.length - 1; i++) {
+            let tokenAddr = tokens[i].address;
             const pair = await getPair(fixture.factory, investToken.address, tokenAddr);
             let liquidity = (await pair.balanceOf(hotPotFund.address)).mul(shareAmount).div(totalSupply);
             liquidity = liquidity.add((await balanceOfStaking(pair)).mul(shareAmount).div(totalSupply));
@@ -336,8 +336,8 @@ describe('HotPotFund', () => {
     }
 
     async function balanceOfStaking(pair: Contract) {
-        if (fixture.factory.uniMintingPool[pair.address]) {
-            return await fixture.factory.uniMintingPool[pair.address].balanceOf(hotPotFund.address);
+        if (fixture.factory.uniPool[pair.address]) {
+            return await fixture.factory.uniPool[pair.address].balanceOf(hotPotFund.address);
         } else {
             return bigNumberify(0);
         }
@@ -346,8 +346,8 @@ describe('HotPotFund', () => {
     async function calSumAssets() {
         let sumAmount = await investToken.balanceOf(hotPotFund.address);
         // console.log(`sumAmount:balance,${sumAmount}`);
-        for (let i = 0; i < pools.length - 1; i++) {
-            const tokenAddr = pools[i].address;
+        for (let i = 0; i < tokens.length - 1; i++) {
+            const tokenAddr = tokens[i].address;
             const pair = await getPair(fixture.factory, investToken.address, tokenAddr);
             let liquidity = (await pair.balanceOf(hotPotFund.address)).add(await balanceOfStaking(pair));
             const totalLP = await pair.totalSupply();
@@ -357,7 +357,7 @@ describe('HotPotFund', () => {
             } else {
                 sumAmount = sumAmount.add(reserve0.mul(2).mul(liquidity).div(totalLP));
             }
-            // console.log(`sumAmount:add pool_${i},${sumAmount}`);
+            // console.log(`sumAmount:add pair_${i},${sumAmount}`);
         }
         return sumAmount;
     }
@@ -411,6 +411,8 @@ describe('HotPotFund', () => {
             if (removeToUserAmount.gt(removeInvestment)) {
                 _fee = (sumRemoveAmount.sub(removeInvestment)).mul(FEE).div(DIVISOR);
                 removeToUserAmount = sumRemoveAmount.sub(_fee);
+            } else {
+                removeInvestment = sumRemoveAmount;
             }
 
             // const earned = await fixture.uniStakingRewardsDAI.earned(hotPotFund.address);
@@ -506,23 +508,23 @@ describe('HotPotFund', () => {
     it('setSwapPath: Uniswap before investing', setSwapPath(async () => {
         return {
             tokenIn: investToken,
-            tokenOut: pools[0],
+            tokenOut: tokens[0],
             path: 1 //Uniswap(0) Curve(1)
         }
     }));
 
-    it('invest: after add pool', invest(async () => {
+    it('invest: after add pair', invest(async () => {
         await sleep(1);
         return {amount: expectedDepositAmount}
     }));
 
-    it('stakeMintingUNIAll: after investing', async () => {
+    it('mineUNIAll: after investing', async () => {
         await sleep(1);
-        await expect(controller.stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.mineUNIAll(hotPotFund.address))
             .to.not.be.reverted;
 
         //Non-Controller operation
-        await expect(hotPotFund.stakeMintingUNIAll())
+        await expect(hotPotFund.mineUNIAll())
             .to.be.revertedWith("Only called by Controller.");
     });
 
@@ -536,7 +538,7 @@ describe('HotPotFund', () => {
         return {depositAmount};
     }));
 
-    it('withdraw: after investing and minting UNI', withdraw(async () => {
+    it('withdraw: after investing and mining UNI', withdraw(async () => {
         const periodFinish = await fixture.uniStakingRewardsDAI.periodFinish();
         await sleep(periodFinish.sub(Math.floor(new Date().getTime() / 1e3)).toNumber());
         const withdrawRatio = 2;//50%
@@ -548,48 +550,46 @@ describe('HotPotFund', () => {
         return {shareAmount, isCurve: false};
     }));
 
-    function adjustPool(builder: () => any) {
+    function adjustPairs(builder: () => any) {
         return async () => {
-            const {upIndex, downIndex, proportion} = await builder();
+            const {proportions} = await builder();
             //Non-Controller operation
-            await expect(hotPotFund.connect(depositor).adjustPool(upIndex, downIndex, proportion))
+            await expect(hotPotFund.connect(depositor).adjustPairs(proportions))
                 .to.be.revertedWith("Only called by Controller.");
 
             //error index
-            await expect(controller.adjustPool(hotPotFund.address, 1, 1, 101))
-                .to.be.revertedWith("Pools index out of range.");
-            await expect(controller.adjustPool(hotPotFund.address, 1, 5, 101))
-                .to.be.revertedWith("Pools index out of range.");
+            await expect(controller.adjustPairs(hotPotFund.address, [35, 15]))
+                .to.be.revertedWith("Pairs index out of range.");
+            await expect(controller.adjustPairs(hotPotFund.address, [35, 15, 25, 25]))
+                .to.be.revertedWith("Pairs index out of range.");
             //error proportion
-            await expect(controller.adjustPool(hotPotFund.address, upIndex, downIndex, 101))
-                .to.be.revertedWith("Not enough proportion.");
+            await expect(controller.adjustPairs(hotPotFund.address, [35, 15, 61]))
+                .to.be.revertedWith("Error proportion.");
 
             //USDC up 10 proportion, USDT down 10 proportion
-            const transaction = await controller.adjustPool(hotPotFund.address, upIndex, downIndex, proportion);
-            printGasLimit(transaction, "adjustPool");
+            const transaction = await controller.adjustPairs(hotPotFund.address, proportions);
+            printGasLimit(transaction, "adjustPairs");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
         }
     }
 
-    it('adjustPool', adjustPool(() => {
+    it('adjustPairs', adjustPairs(() => {
         return {
-            upIndex: 0,
-            downIndex: 1,
-            proportion: 10
+            proportions: [35, 15, 50]
         };
     }));
 
     it('setSwapPath: Curve before reBalance', setSwapPath(async () => {
         return {
             tokenIn: investToken,
-            tokenOut: pools[0],
+            tokenOut: tokens[0],
             path: 1 //Uniswap(0) Curve(1)
         }
     }));
 
 
-    async function poolLiquidityOf(pair: Contract, poolIndex: number) {
-        pair = pair || await getPair(fixture.factory, investToken.address, pools[poolIndex].address);
+    async function pairLiquidityOf(pair: Contract, pairIndex: number) {
+        pair = pair || await getPair(fixture.factory, investToken.address, tokens[pairIndex].address);
         const availableLP = await pair.balanceOf(hotPotFund.address);
         const stackingLP = await hotPotFund.stakingLPOf(pair.address);
         return availableLP.add(stackingLP);
@@ -600,9 +600,9 @@ describe('HotPotFund', () => {
             const {addIndex, removeIndex, removeRatio} = await builder();
             const fundTokenAddr = hotPotFund.token ? await hotPotFund.token() : fixture.tokenWETH.address;
 
-            const removeTokenAddr = (await hotPotFund.pools(removeIndex)).token;
+            const removeTokenAddr = (await hotPotFund.pairs(removeIndex)).token;
             const removePair = await getPair(fixture.factory, fundTokenAddr, removeTokenAddr);
-            const removePairLiquidity = await poolLiquidityOf(removePair, removeIndex);
+            const removePairLiquidity = await pairLiquidityOf(removePair, removeIndex);
 
             const removeLiquidity = removePairLiquidity.div(removeRatio);// MINIMUM_LIQUIDITY = 1000
 
@@ -612,9 +612,9 @@ describe('HotPotFund', () => {
 
             //error index
             await expect(controller.reBalance(hotPotFund.address, 1, 1, 101))
-                .to.be.revertedWith("Pools index out of range.");
+                .to.be.revertedWith("Pairs index out of range.");
             await expect(controller.reBalance(hotPotFund.address, 1, 5, 101))
-                .to.be.revertedWith("Pools index out of range.");
+                .to.be.revertedWith("Pairs index out of range.");
             //error liquidity
             await expect(controller.reBalance(hotPotFund.address, addIndex, removeIndex, MaxUint256))
                 .to.be.revertedWith("Not enough liquidity.");
@@ -629,41 +629,44 @@ describe('HotPotFund', () => {
     const addIndex = 0;
     const removeIndex = 1;
 
-    it('reBalance: remove half of pool_1 liquidity', reBalance(async () => {
+    it('reBalance: remove half of pair_1 liquidity', reBalance(async () => {
         await sleep(1);
-        // await printPoolsStatus(hotPotFund);
+        // await printPairsStatus(hotPotFund);
         return {addIndex: addIndex, removeIndex: removeIndex, removeRatio: 2};
     }));
 
-    it("adjustPool: remove pool_1", async () => {
-        const upIndex = addIndex;
+    it("removePair: remove pair_1", async () => {
         const downIndex = removeIndex;
+        const proportions = [50, 50, 50];
+        proportions[downIndex] = 0;
         await sleep(1);
-        // await printPoolsStatus(hotPotFund);
-        const transaction = await controller.adjustPool(hotPotFund.address, upIndex, downIndex, (await hotPotFund.pools(downIndex)).proportion);
-        printGasLimit(transaction, "adjustPool");
+        // await printPairsStatus(hotPotFund);
+        await expect(controller.adjustPairs(hotPotFund.address, proportions))
+            .to.not.be.reverted;
+        const transaction = await controller.removePair(hotPotFund.address, downIndex);
+        printGasLimit(transaction, "removePair");
         if (investToken.address != fixture.tokenWETH.address) {
             await expect(Promise.resolve(transaction))
-                .to.emit(pools[downIndex], "Approval")
+                .to.emit(tokens[downIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.router.address, 0)
-                .to.emit(pools[downIndex], "Approval")
+                .to.emit(tokens[downIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.curve.address, 0)
         } else {
             await expect(Promise.resolve(transaction))
-                .to.emit(pools[downIndex], "Approval")
+                .to.emit(tokens[downIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.router.address, 0);
         }
     });
 
-    it("addPool: add pool_1 again", async () => {
+    it("addPair: add pair_1 again", async () => {
         await sleep(1);
-        // await printPoolsStatus(hotPotFund);
+        // await printPairsStatus(hotPotFund);
 
-        // console.log(`pools[${removeIndex}] approve hotPotFund to router balance: ${await pools[removeIndex].allowance(hotPotFund.address, fixture.router.address)}`);
-        // console.log(`pools[${removeIndex}] approve hotPotFund to curve  balance: ${await pools[removeIndex].allowance(hotPotFund.address, fixture.curve.address)}`);
+        // console.log(`tokens[${removeIndex}] approve hotPotFund to router balance: ${await tokens[removeIndex].allowance(hotPotFund.address, fixture.router.address)}`);
+        // console.log(`tokens[${removeIndex}] approve hotPotFund to curve  balance: ${await tokens[removeIndex].allowance(hotPotFund.address, fixture.curve.address)}`);
 
-        const transaction = await controller.addPool(hotPotFund.address, pools[removeIndex].address, 50);
-        printGasLimit(transaction, "addPool");
+        const transaction = await controller.addPair(hotPotFund.address, tokens[removeIndex].address, [25, 25, 50]);
+        printGasLimit(transaction, "addPair");
         await expect(Promise.resolve(transaction)).to.not.be.reverted;
     });
 });

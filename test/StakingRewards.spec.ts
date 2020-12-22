@@ -40,7 +40,6 @@ const overrides = {
 
 
 describe('StakingRewards', () => {
-    //获取provider环境
     const provider = new MockProvider({
         hardfork: 'istanbul',
         mnemonic: 'hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot',

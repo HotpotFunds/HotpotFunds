@@ -6,7 +6,7 @@ contract HotPotFundERC20 {
     using SafeMath for uint;
 
     string public constant name = 'Hotpot V1';
-    string public constant symbol = 'HOT-V1';
+    string public constant symbol = 'HPT-V1';
     uint8 public constant decimals = 18;
     uint public totalSupply;
     mapping(address => uint) public balanceOf;

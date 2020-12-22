@@ -27,22 +27,23 @@ interface IHotPotFund {
 
     function totalDebts() external view returns (uint);
     function debtOf(address owner) external view returns (uint256);
-    function uniMintingPool(address pair) external view returns (address);
+    function uniPool(address pair) external view returns (address);
 
-    function pools(uint index) external view returns (address, uint);
-    function poolsLength() external view returns(uint);
+    function pairs(uint index) external view returns (address, uint);
+    function pairsLength() external view returns(uint);
     function paths(address tokenIn, address tokenOut) external view returns(uint);
 
     function deposit(uint amount) external returns(uint share);
     function withdraw(uint share) external returns(uint amount);
 
     function invest(uint amount) external;
-    function addPool(address _token, uint _proportion) external;
-    function adjustPool(uint up_index, uint down_index, uint proportion) external;
+    function addPair(address _token, uint[] calldata proportions) external;
+    function adjustPairs(uint[] calldata proportions) external;
+    function removePair(uint index) external;
     function reBalance(uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address tokenIn, address tokenOut, SwapPath path) external;
 
-    function setMintingUNIPool(address pair, address mintingPool) external;
-    function stakeMintingUNI(address pair) external;
-    function stakeMintingUNIAll() external;
+    function setUNIPool(address pair, address _uniPool) external;
+    function mineUNI(address pair) external;
+    function mineUNIAll() external;
 }

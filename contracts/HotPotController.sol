@@ -67,18 +67,17 @@ contract HotPotController is ReentrancyGuard {
         IHotPotFund(fund).invest(amount);
     }
 
-    function addPool(address fund, address token, uint proportion) external onlyManager{
+    function addPair(address fund, address token, uint[] calldata proportions) external onlyManager{
         require(trustedToken[token], "The token is not trusted.");
-        IHotPotFund(fund).addPool(token, proportion);
+        IHotPotFund(fund).addPair(token, proportions);
     }
 
-    function adjustPool(
-        address fund,
-        uint up_index,
-        uint down_index,
-        uint proportion
-    ) external onlyManager {
-        IHotPotFund(fund).adjustPool(up_index, down_index, proportion);
+    function adjustPairs(address fund, uint[] calldata proportions) external onlyManager {
+        IHotPotFund(fund).adjustPairs(proportions);
+    }
+
+    function removePair(address fund, uint index)  external onlyManager {
+        IHotPotFund(fund).removePair(index);
     }
 
     function reBalance(
@@ -104,12 +103,12 @@ contract HotPotController is ReentrancyGuard {
         manager = account;
     }
 
-    function stakeMintingUNI(address fund, address pair) external onlyManager {
-        IHotPotFund(fund).stakeMintingUNI(pair);
+    function mineUNI(address fund, address pair) external onlyManager {
+        IHotPotFund(fund).mineUNI(pair);
     }
 
-    function stakeMintingUNIAll(address fund) external onlyManager {
-        IHotPotFund(fund).stakeMintingUNIAll();
+    function mineUNIAll(address fund) external onlyManager {
+        IHotPotFund(fund).mineUNIAll();
     }
 
     function setGovernance(address account) onlyGovernance external {
@@ -117,8 +116,8 @@ contract HotPotController is ReentrancyGuard {
         governance = account;
     }
 
-    function setMintingUNIPool(address fund, address pair, address mintingPool) external onlyGovernance {
-        IHotPotFund(fund).setMintingUNIPool(pair, mintingPool);
+    function setUNIPool(address fund, address pair, address uniPool) external onlyGovernance {
+        IHotPotFund(fund).setUNIPool(pair, uniPool);
     }
 
     function setTrustedToken(address token, bool isTrusted) external onlyGovernance {

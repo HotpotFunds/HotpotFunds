@@ -120,10 +120,10 @@ export async function getAmountOut(factory: Contract, router: Contract,
     return {amountOut, pair}
 }
 
-export async function printPoolsStatus(hotPotFund: Contract) {
-    const length = (await hotPotFund.poolsLength()).toNumber();
+export async function printPairsStatus(hotPotFund: Contract) {
+    const length = (await hotPotFund.pairsLength()).toNumber();
     for (let i = 0; i < length; i++) {
-        console.log(`pool_${i}:${await hotPotFund.pools(i)}`);
+        console.log(`pair_${i}:${await hotPotFund.pairs(i)}`);
     }
 }
 
@@ -221,7 +221,7 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
 
     // deploy curve
     const curve = await deployContract(wallet, CurveMock, [[tokenDAI.address, tokenUSDC.address, tokenUSDT.address]], overrides);
-    // initialize curve sUSD pool
+    // initialize curve sUSD pair
     await tokenDAI._mint_for_testing(curve.address, INIT_PAIR_LP_AMOUNT_18);
     await tokenUSDC._mint_for_testing(curve.address, INIT_PAIR_LP_AMOUNT_6);
     await tokenUSDT._mint_for_testing(curve.address, INIT_PAIR_LP_AMOUNT_6);
@@ -290,17 +290,18 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
     await createPairAndInit(tokenUSDT, tokenHotPot);
 
     // UNI stakingRewards
-    const uniMintingPool: any = {};
-    async function addUniMintingPool(token0: string, token1: string) {
+    const uniPool: any = {};
+    async function addUniPool(token0: string, token1: string) {
         const pairAddr = await factory.getPair(token0, token1);
-        uniMintingPool[pairAddr] = await deployContract(wallet, StakingRewards,
+        uniPool[pairAddr] = await deployContract(wallet, StakingRewards,
             [wallet.address, tokenUNI.address, pairAddr], overrides);
-        return uniMintingPool[pairAddr];
+        return uniPool[pairAddr];
     }
-    const uniStakingRewardsDAI = await addUniMintingPool(tokenWETH.address, tokenDAI.address);
-    const uniStakingRewardsUSDC = await addUniMintingPool(tokenWETH.address, tokenUSDC.address);
-    const uniStakingRewardsUSDT = await addUniMintingPool(tokenWETH.address, tokenUSDT.address);
-    (factory as any)["uniMintingPool"] = uniMintingPool;
+
+    const uniStakingRewardsDAI = await addUniPool(tokenWETH.address, tokenDAI.address);
+    const uniStakingRewardsUSDC = await addUniPool(tokenWETH.address, tokenUSDC.address);
+    const uniStakingRewardsUSDT = await addUniPool(tokenWETH.address, tokenUSDT.address);
+    (factory as any)["uniPool"] = uniPool;
 
     // deploy HotPotController
     const hotPotController = await deployContract(wallet, HotPotController,

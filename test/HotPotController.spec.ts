@@ -16,7 +16,6 @@ const INIT_HARVEST_AMOUNT_18 = expandTo18Decimals(25);
 const INIT_HARVEST_AMOUNT_6 = expandTo6Decimals(25);
 
 describe('HotPotController', () => {
-    //获取provider环境
     const provider = new MockProvider({
         hardfork: 'istanbul',
         mnemonic: 'hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot hotpot',
@@ -31,11 +30,11 @@ describe('HotPotController', () => {
     let hotPotFund: Contract;
     let investToken: Contract;
     let tokenHotPot: Contract;
-    let pool1: Contract;
-    let pool2: Contract;
+    let token1: Contract;
+    let token2: Contract;
     let INIT_DEPOSIT_AMOUNT: BigNumber;
     let INIT_HARVEST_AMOUNT: BigNumber;
-    let mintPair: Contract;
+    let minePair: Contract;
 
     before(async () => {
         fixture = await loadFixture(HotPotFixture);
@@ -46,12 +45,12 @@ describe('HotPotController', () => {
         hotPotFund = (<any>fixture)["hotPotFund" + TOKEN_TYPE];
         investToken = (<any>fixture)["token" + TOKEN_TYPE];
 
-        let pools = [fixture.tokenDAI, fixture.tokenUSDC, fixture.tokenUSDT, fixture.tokenWETH];
-        const index = pools.findIndex(value => value.address == investToken.address);
-        pools.splice(index, 1);
-        pool1 = pools[0];
-        pool2 = pools[1];
-        mintPair = await getPair(fixture.factory, fixture.tokenETH.address,
+        let tokens = [fixture.tokenDAI, fixture.tokenUSDC, fixture.tokenUSDT, fixture.tokenWETH];
+        const index = tokens.findIndex(value => value.address == investToken.address);
+        tokens.splice(index, 1);
+        token1 = tokens[0];
+        token2 = tokens[1];
+        minePair = await getPair(fixture.factory, fixture.tokenETH.address,
             investToken.address != fixture.tokenETH.address ? investToken.address : fixture.tokenDAI.address);
 
         INIT_DEPOSIT_AMOUNT = await investToken.decimals() == 18 ? INIT_DEPOSIT_AMOUNT_18 : INIT_DEPOSIT_AMOUNT_6;
@@ -111,26 +110,26 @@ describe('HotPotController', () => {
     }));
 
 
-    function addPool(builder: () => any) {
+    function addPair(builder: () => any) {
         return async () => {
-            const {pool1, pool2} = await builder();
+            const {token1, token2} = await builder();
 
             //Non-Manager operation
-            await expect(controller.connect(depositor).addPool(hotPotFund.address, pool1.address, 100))
+            await expect(controller.connect(depositor).addPair(hotPotFund.address, token1.address, [100]))
                 .to.be.revertedWith("Only called by Manager.");
 
-            //init proportion pool1=100
-            await expect(controller.addPool(hotPotFund.address, pool1.address, 100))
+            //init proportion token1=100
+            await expect(controller.addPair(hotPotFund.address, token1.address, [100]))
                 .to.not.be.reverted;
 
-            //proportion pool1=50、poo2=50
-            await expect(controller.addPool(hotPotFund.address, pool2.address, 50))
+            //proportion token1=50、poo2=50
+            await expect(controller.addPair(hotPotFund.address, token2.address, [50, 50]))
                 .to.not.be.reverted;
         }
     }
 
-    it('addPool', addPool(async () => {
-        return {pool1, pool2};
+    it('addPair', addPair(async () => {
+        return {token1, token2};
     }));
 
     function setSwapPath(builder: () => any) {
@@ -151,7 +150,7 @@ describe('HotPotController', () => {
     it('setSwapPath: Uniswap', setSwapPath(async () => {
         return {
             tokenIn: investToken,
-            tokenOut: pool1,
+            tokenOut: token1,
             path: 0 //Uniswap(0) Curve(1)
         }
     }));
@@ -159,7 +158,7 @@ describe('HotPotController', () => {
     it('setSwapPath: Curve', setSwapPath(async () => {
         return {
             tokenIn: investToken,
-            tokenOut: pool2,
+            tokenOut: token2,
             path: 1 //Uniswap(0) Curve(1)
         }
     }));
@@ -183,24 +182,22 @@ describe('HotPotController', () => {
         return {amount}
     }));
 
-    function adjustPool(builder: () => any) {
+    function adjustPairs(builder: () => any) {
         return async () => {
-            const {upIndex, downIndex, proportion} = await builder();
+            const {proportions} = await builder();
             //Non-Manager operation
-            await expect(controller.connect(depositor).adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
+            await expect(controller.connect(depositor).adjustPairs(hotPotFund.address, proportions))
                 .to.be.revertedWith("Only called by Manager.");
 
             //USDC up 10 proportion, USDT down 10 proportion
-            await expect(controller.adjustPool(hotPotFund.address, upIndex, downIndex, proportion))
+            await expect(controller.adjustPairs(hotPotFund.address, proportions))
                 .to.not.be.reverted;
         }
     }
 
-    it('adjustPool', adjustPool(() => {
+    it('adjustPairs', adjustPairs(() => {
         return {
-            upIndex: 0,
-            downIndex: 1,
-            proportion: 10
+            proportions:[60, 40]
         };
     }));
 
@@ -209,8 +206,8 @@ describe('HotPotController', () => {
         return async () => {
             const {addIndex, removeIndex} = await builder();
 
-            const addTokenAddr = (await hotPotFund.pools(addIndex)).token;
-            const removeTokenAddr = (await hotPotFund.pools(removeIndex)).token;
+            const addTokenAddr = (await hotPotFund.pairs(addIndex)).token;
+            const removeTokenAddr = (await hotPotFund.pairs(removeIndex)).token;
 
             const fundTokenAddr = hotPotFund.token ? await hotPotFund.token() : fixture.tokenWETH.address;
             // const addPair = await getPair(fixture.factory, fundTokenAddr, addTokenAddr);
@@ -235,23 +232,23 @@ describe('HotPotController', () => {
         return {addIndex: 0, removeIndex: 1};
     }));
 
-    it('stakeMintingUNI', async () => {
+    it('mineUNI', async () => {
         //Non-Manager operation
-        await expect(controller.connect(depositor).stakeMintingUNI(
-            hotPotFund.address, mintPair.address))
+        await expect(controller.connect(depositor).mineUNI(
+            hotPotFund.address, minePair.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(controller.connect(manager).stakeMintingUNI(
-            hotPotFund.address, mintPair.address))
+        await expect(controller.connect(manager).mineUNI(
+            hotPotFund.address, minePair.address))
             .to.not.be.reverted;
     });
 
-    it('stakeMintingUNIAll', async () => {
+    it('mineUNIAll', async () => {
         //Non-Manager operation
-        await expect(controller.connect(depositor).stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.connect(depositor).mineUNIAll(hotPotFund.address))
             .to.be.revertedWith("Only called by Manager.");
 
-        await expect(controller.connect(manager).stakeMintingUNIAll(hotPotFund.address))
+        await expect(controller.connect(manager).mineUNIAll(hotPotFund.address))
             .to.not.be.reverted;
     });
 
@@ -277,15 +274,15 @@ describe('HotPotController', () => {
         await expect(await controller.governance()).to.eq(governance.address);
     });
 
-    it('setMintingUNIPool', async () => {
-        const mintPair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
+    it('setUNIPool', async () => {
+        const minePair = (await getPair(fixture.factory, fixture.tokenETH.address, fixture.tokenDAI.address));
         //Non-Governance operation
-        await expect(controller.connect(depositor).setMintingUNIPool(
-            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
+        await expect(controller.connect(depositor).setUNIPool(
+            hotPotFund.address, minePair.address, fixture.uniStakingRewardsDAI.address))
             .to.be.revertedWith("Only called by Governance.");
 
-        await expect(controller.connect(governance).setMintingUNIPool(
-            hotPotFund.address, mintPair.address, fixture.uniStakingRewardsDAI.address))
+        await expect(controller.connect(governance).setUNIPool(
+            hotPotFund.address, minePair.address, fixture.uniStakingRewardsDAI.address))
             .to.not.be.reverted;
     });
 

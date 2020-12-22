@@ -6,7 +6,7 @@ contract HotPot {
     using SafeMath for uint;
 
     string public constant name = 'Hotpot Funds';
-    string public constant symbol = 'HOT';
+    string public constant symbol = 'HPT';
     uint8 public constant decimals = 18;
     uint public totalSupply = 1000000e18;  // Initial supply 1 million HotPot.
 

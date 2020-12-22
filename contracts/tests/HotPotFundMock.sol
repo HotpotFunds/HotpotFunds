@@ -34,13 +34,13 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     uint public totalDebts;
     mapping(address => uint256) public debtOf;
     // UNI mining pool pair->minting pool
-    mapping(address => address) public uniMintingPool;
+    mapping(address => address) public uniPool;
 
-    struct Pool {
+    struct Pair {
         address token;
         uint proportion;
     }
-    Pool[] public pools;
+    Pair[] public pairs;
 
     enum SwapPath { UNISWAP, CURVE }
     mapping (address => mapping (address => SwapPath)) public paths;
@@ -104,14 +104,14 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     * 当合约中还未投入流动池的资金额度较大时，一次性投入会产生较大滑点，可能要分批操作，所以投资行为必须由基金统一操作.
      */
     function invest(uint amount) external onlyController {
-        uint len = pools.length;
-        require(len>0, 'Pools is empty.');
+        uint len = pairs.length;
+        require(len>0, 'Pairs is empty.');
         address token0 = token;
         require(amount <= IERC20(token0).balanceOf(address(this)), "Not enough balance.");
 
         for(uint i=0; i<len; i++){
-            address token1 = pools[i].token;
-            uint amount0 = (amount.mul(pools[i].proportion).div(DIVISOR)) >> 1;
+            address token1 = pairs[i].token;
+            uint amount0 = (amount.mul(pairs[i].proportion).div(DIVISOR)) >> 1;
             uint amount1;
             if( paths[token0][token1] == SwapPath.CURVE )
                 amount1 = _swapByCurve(token0, token1, amount0);
@@ -140,17 +140,17 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function setMintingUNIPool(address pair, address mintingPool) external onlyController {
-        require(pair!= address(0) && mintingPool!= address(0), "Invalid args address.");
-        if(uniMintingPool[pair] != address(0)){
+    function setUNIPool(address pair, address _uniPool) external onlyController {
+        require(pair!= address(0) && _uniPool!= address(0), "Invalid args address.");
+        if(uniPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
         }
-        IERC20(pair).approve(mintingPool, 2**256-1);
-        uniMintingPool[pair] = mintingPool;
+        IERC20(pair).approve(_uniPool, 2**256-1);
+        uniPool[pair] = _uniPool;
     }
 
-    function stakeMintingUNI(address pair) public onlyController {
-        address stakingRewardAddr = uniMintingPool[pair];
+    function mineUNI(address pair) public onlyController {
+        address stakingRewardAddr = uniPool[pair];
         if(stakingRewardAddr != address(0)){
             uint liquidity = IUniswapV2Pair(pair).balanceOf(address(this));
             if(liquidity > 0){
@@ -159,10 +159,10 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function stakeMintingUNIAll() external onlyController {
-        for(uint i = 0; i < pools.length; i++){
-            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pools[i].token));
-            address stakingRewardAddr = uniMintingPool[address(pair)];
+    function mineUNIAll() external onlyController {
+        for(uint i = 0; i < pairs.length; i++){
+            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pairs[i].token));
+            address stakingRewardAddr = uniPool[address(pair)];
             if(stakingRewardAddr != address(0)){
                 uint liquidity = pair.balanceOf(address(this));
                 if(liquidity > 0){
@@ -174,9 +174,9 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
 
     function totalUNIRewards() public view returns(uint amount){
         amount = IERC20(UNI).balanceOf(address(this));
-        for(uint i = 0; i < pools.length; i++){
-            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pools[i].token));
-            address stakingRewardAddr = uniMintingPool[address(pair)];
+        for(uint i = 0; i < pairs.length; i++){
+            IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, pairs[i].token));
+            address stakingRewardAddr = uniPool[address(pair)];
             if(stakingRewardAddr != address(0)){
                 amount = amount.add(IStakingRewards(stakingRewardAddr).earned(address(this)));
             }
@@ -192,13 +192,13 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function stakingLPOf(address pair) public view returns(uint liquidity){
-        if(uniMintingPool[pair] != address(0)){
-            liquidity = IStakingRewards(uniMintingPool[pair]).balanceOf(address(this));
+        if(uniPool[pair] != address(0)){
+            liquidity = IStakingRewards(uniPool[pair]).balanceOf(address(this));
         }
     }
 
     function _withdrawStaking(IUniswapV2Pair pair, uint share) internal returns(uint liquidity){
-        address stakingRewardAddr = uniMintingPool[address(pair)];
+        address stakingRewardAddr = uniPool[address(pair)];
         if(stakingRewardAddr != address(0)){
             liquidity = IStakingRewards(stakingRewardAddr).balanceOf(address(this)).mul(share).div(totalSupply);
             if(liquidity > 0){
@@ -226,8 +226,8 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     ) internal returns (uint amount, uint investment) {
         address token0 = token;
         amount = IERC20(token0).balanceOf(address(this)).mul(share).div(totalSupply);
-        for(uint i = 0; i < pools.length; i++) {
-            address token1 = pools[i].token;
+        for(uint i = 0; i < pairs.length; i++) {
+            address token1 = pairs[i].token;
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
             uint liquidity = pair.balanceOf(address(this)).mul(share).div(totalSupply);
             liquidity  = liquidity.add(_withdrawStaking(pair, share));
@@ -266,12 +266,15 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
             amount = amount.sub(_fee);
             IERC20(token0).safeTransfer(controller, _fee);
         }
+        else {
+            investment = amount;
+        }
     }
 
     function assets(uint index) public view returns(uint _assets) {
-        require(index < pools.length, 'Pools index out of range.');
+        require(index < pairs.length, 'Pools index out of range.');
         address token0 = token;
-        address token1 = pools[index].token;
+        address token1 = pairs[index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
         (uint reserve0, uint reserve1, ) = pair.getReserves();
 
@@ -284,8 +287,8 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
 
     function totalAssets() public view returns(uint _assets) {
         address token0 = token;
-        for(uint i=0; i<pools.length; i++){
-            address token1 = pools[i].token;
+        for(uint i=0; i<pairs.length; i++){
+            address token1 = pairs[i].token;
             IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
             (uint reserve0, uint reserve1, ) = pair.getReserves();
             uint liquidity = pair.balanceOf(address(this)).add(stakingLPOf(address(pair)));
@@ -297,8 +300,8 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         _assets = _assets.add(IERC20(token0).balanceOf(address(this)));
     }
 
-    function poolsLength() public view returns(uint) {
-        return pools.length;
+    function pairsLength() public view returns(uint) {
+        return pairs.length;
     }
 
     function setSwapPath(
@@ -312,16 +315,21 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     /**
     * @notice 添加流动池时，已有的流动池等比缩减.
     * 注意：等比缩减可能出现浮点数，而solidity对浮点数只能取整，从而造成合计比例不足100，添加会失败.
-    * 所以需要精心选择添加比例, 如果无法凑整，则需要先调用adjustPool调整比例.
+    * 所以需要精心选择添加比例, 如果无法凑整，则需要先调用adjustPair调整比例.
     * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
     */
-    function addPool(
-        address _token,
-        uint _proportion
-    ) external onlyController {
+    /**
+    * @notice 添加流动池时，已有的流动池等比缩减.
+    * 注意：等比缩减可能出现浮点数，而solidity对浮点数只能取整，从而造成合计比例不足100，添加会失败.
+    * 所以需要精心选择添加比例, 如果无法凑整，则需要先调用adjustPair调整比例.
+    * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
+    */
+    function addPair(address _token, uint[] calldata proportions) external onlyController {
         uint _whole;
+        uint addIndex = pairs.length;
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(token, _token);
         require(pair != address(0), 'Pair not exist.');
+        require(proportions.length == addIndex+1, 'Pairs index out of range.');
 
         //approve for add liquidity and swap.
         IERC20(_token).safeApprove(UNISWAP_V2_ROUTER, 2**256-1);
@@ -329,15 +337,14 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         //approve for remove liquidity
         IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
-        for(uint i=0; i<pools.length; i++) {
-            uint _p = pools[i].proportion.mul(DIVISOR.sub(_proportion)).div(DIVISOR);
-            pools[i].proportion = _p;
-            _whole = _whole.add(_p);
+        pairs.length++;
+        pairs[addIndex].token = _token;
+        for(uint i = 0; i <= addIndex; i++) {
+            if(i < addIndex) require(pairs[i].token != _token, 'Add pair repeatedly.');
+            pairs[i].proportion = proportions[i];
+            _whole = _whole.add(proportions[i]);
         }
-        require(_whole.add(_proportion) == DIVISOR, 'Error proportion.');
-        pools.length++;
-        pools[pools.length-1].token = _token;
-        pools[pools.length-1].proportion = _proportion;
+        require(_whole == DIVISOR, 'Error proportion.');
     }
 
     /**
@@ -346,22 +353,15 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
     * 如果要移除某个流动池，将该流动池的流动性降到0即可. 对于移除的流动池，需要将该流动池清空.
     * 调整之后只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，应该用reBalance函数.
     */
-    function adjustPool(
-        uint up_index,
-        uint down_index,
-        uint proportion
-    ) external onlyController {
-        require(
-            up_index < pools.length &&
-            down_index < pools.length &&
-            up_index != down_index, 'Pools index out of range.'
-        );
-        require(pools[down_index].proportion >= proportion, 'Not enough proportion.');
+    function adjustPairs(uint[] calldata proportions) external onlyController {
+        uint _whole;
+        require(proportions.length == pairs.length, 'Pairs index out of range.');
 
-        pools[down_index].proportion -= proportion;
-        pools[up_index].proportion += proportion;
-        //移除比例为0的流动池.
-        if(pools[down_index].proportion == 0) _removePool(down_index);
+        for(uint i=0; i<pairs.length; i++) {
+            pairs[i].proportion = proportions[i];
+            _whole = _whole.add(proportions[i]);
+        }
+        require(_whole == DIVISOR, 'Error proportion.');
     }
 
     /**
@@ -374,18 +374,18 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         uint liquidity
     ) external onlyController {
         require(
-            add_index < pools.length &&
-            remove_index < pools.length &&
-            add_index != remove_index, 'Pools index out of range.'
+            add_index < pairs.length &&
+            remove_index < pairs.length &&
+            add_index != remove_index, 'Pairs index out of range.'
         );
 
         //撤出&兑换
         address token0 = token;
-        address token1 = pools[remove_index].token;
+        address token1 = pairs[remove_index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
 
         uint stakingLP = stakingLPOf(address(pair));
-        if(stakingLP > 0) IStakingRewards(uniMintingPool[address(pair)]).exit();
+        if(stakingLP > 0) IStakingRewards(uniPool[address(pair)]).exit();
 
         require(liquidity <= pair.balanceOf(address(this)), 'Not enough liquidity.');
 
@@ -401,7 +401,7 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
             amount0 = amount0.add(_swap(token1, token0, amount1));
 
         //兑换&投入
-        token1 = pools[add_index].token;
+        token1 = pairs[add_index].token;
         amount0 = amount0 >> 1;
         if( paths[token0][token1] == SwapPath.CURVE )
             amount1 = _swapByCurve(token0, token1, amount0);
@@ -424,12 +424,13 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         }
     }
 
-    function _removePool(uint index) internal {
-        require(index < pools.length, 'Pools index out of range.');
+    function removePair(uint index) external onlyController {
+        require(index < pairs.length, 'Pairs index out of range.');
+        require(pairs[index].proportion == 0, 'Proportion is not equal to 0.');
 
         //撤出&兑换
         address token0 = token;
-        address token1 = pools[index].token;
+        address token1 = pairs[index].token;
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
         _withdrawStaking(pair, totalSupply);
         uint liquidity = pair.balanceOf(address(this));
@@ -449,24 +450,10 @@ contract HotPotFundMock is ReentrancyGuard, HotPotFundERC20 {
         IERC20(token1).safeApprove(UNISWAP_V2_ROUTER, 0);
         IERC20(token1).safeApprove(CURVE_FI, 0);
 
-        /**
-        重新构建pools数组
-        */
-        Pool[] memory _pools = new Pool[](pools.length-1);
-        uint j=0;
-        for(uint i=0; i<pools.length; i++) {
-            if(i!=index) {
-                _pools[j].token = pools[i].token;
-                _pools[j].proportion = pools[i].proportion;
-                j++;
-            }
+        for (uint i = index; i<pairs.length-1; i++){
+            pairs[i] = pairs[i+1];
         }
-        delete pools;
-        for(uint i=0; i<_pools.length; i++) {
-            pools.length++;
-            pools[i].token = _pools[i].token;
-            pools[i].proportion = _pools[i].proportion;
-        }
+        pairs.pop();
     }
 
     function _swap(address tokenIn, address tokenOut, uint amount) private returns(uint) {
