@@ -253,13 +253,13 @@ describe('HotPotController', () => {
     });
 
     it('setManager', async () => {
-        //Non-Manager operation
+        //Non-Governance operation
         await expect(controller.connect(depositor).setManager(manager.address))
-            .to.be.revertedWith("Only called by Manager.");
+            .to.be.revertedWith("Only called by Governance.");
 
-        await expect(controller.connect(manager).setManager(depositor.address)).to.not.be.reverted;
+        await expect(controller.connect(governance).setManager(depositor.address)).to.not.be.reverted;
         await expect(await controller.manager()).to.eq(depositor.address);
-        await expect(controller.connect(depositor).setManager(manager.address)).to.not.be.reverted;
+        await expect(controller.connect(governance).setManager(manager.address)).to.not.be.reverted;
         await expect(await controller.manager()).to.eq(manager.address);
     });
 

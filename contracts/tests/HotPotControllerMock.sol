@@ -98,11 +98,6 @@ contract HotPotControllerMock is ReentrancyGuard {
         IHotPotFund(fund).setSwapPath(tokenIn, tokenOut, path);
     }
 
-    function setManager(address account) onlyManager external{
-        require(account != address(0), "invalid manager address.");
-        manager = account;
-    }
-
     function mineUNI(address fund, address pair) external onlyManager {
         IHotPotFund(fund).mineUNI(pair);
     }
@@ -114,6 +109,11 @@ contract HotPotControllerMock is ReentrancyGuard {
     function setGovernance(address account) onlyGovernance external {
         require(account != address(0), "invalid governance address.");
         governance = account;
+    }
+
+    function setManager(address account) onlyGovernance external{
+        require(account != address(0), "invalid manager address.");
+        manager = account;
     }
 
     function setUNIPool(address fund, address pair, address uniPool) external onlyGovernance {
