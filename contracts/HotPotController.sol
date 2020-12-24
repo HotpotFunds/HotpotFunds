@@ -63,17 +63,13 @@ contract HotPotController is ReentrancyGuard {
         return amounts[1];
     }
 
-    function invest(address fund, uint amount) external onlyManager {
-        IHotPotFund(fund).invest(amount);
+    function invest(address fund, uint amount, uint[] calldata proportions) external onlyManager {
+        IHotPotFund(fund).invest(amount, proportions);
     }
 
-    function addPair(address fund, address token, uint[] calldata proportions) external onlyManager{
+    function addPair(address fund, address token) external onlyManager{
         require(trustedToken[token], "The token is not trusted.");
-        IHotPotFund(fund).addPair(token, proportions);
-    }
-
-    function adjustPairs(address fund, uint[] calldata proportions) external onlyManager {
-        IHotPotFund(fund).adjustPairs(proportions);
+        IHotPotFund(fund).addPair(token);
     }
 
     function removePair(address fund, uint index)  external onlyManager {

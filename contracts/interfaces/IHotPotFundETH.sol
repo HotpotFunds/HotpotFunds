@@ -28,16 +28,15 @@ interface IHotPotFundETH {
     function debtOf(address owner) external view returns (uint256);
     function uniPool(address pair) external view returns (address);
 
-    function pairs(uint index) external view returns (address, uint);
+    function pairs(uint index) external view returns (address);
     function pairsLength() external view returns(uint);
     function paths(address tokenIn, address tokenOut) external view returns(uint);
 
     function deposit() external payable returns(uint share);
     function withdraw(uint share) external returns(uint amount);
 
-    function invest(uint amount) external;
-    function addPair(address _token, uint[] calldata proportions) external;
-    function adjustPairs(uint[] calldata proportions) external;
+    function invest(uint amount, uint[] calldata proportions) external;
+    function addPair(address _token) external;
     function removePair(uint index) external;
     function reBalance(uint add_index, uint remove_index, uint liquidity) external;
     function setSwapPath(address tokenIn, address tokenOut, SwapPath path) external;

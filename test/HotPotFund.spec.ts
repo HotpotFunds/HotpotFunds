@@ -38,6 +38,7 @@ describe('HotPotFund', () => {
     let investToken: Contract;
 
     let INIT_DEPOSIT_AMOUNT: BigNumber;
+    const INIT_PROPORTIONS = [25, 25, 50];
 
     let expectedDepositAmount = bigNumberify(0);
     let expectedWithdrawAmount = bigNumberify(0);
@@ -96,10 +97,7 @@ describe('HotPotFund', () => {
                 // pairs: {
                 //     symbol: "shallowDeepEqual",
                 //     args: [0],
-                //     value: {
-                //         token: AddressZero,
-                //         proportion: new BigNumber(0)
-                //     }
+                //     value: AddressZero
                 // },
                 pairsLength: {
                     value: 0
@@ -154,67 +152,47 @@ describe('HotPotFund', () => {
         return async () => {
             const {tokenArr} = await builder();
             //not trusted token
-            await expect(controller.addPair(hotPotFund.address, hotPotFund.address, [100]))
+            await expect(controller.addPair(hotPotFund.address, hotPotFund.address))
                 .to.be.revertedWith('The token is not trusted.');
             //error pair
-            await expect(controller.addPair(hotPotFund.address, investToken.address, [100]))
+            await expect(controller.addPair(hotPotFund.address, investToken.address))
                 .to.be.revertedWith('Pair not exist.');
-            //init proportion < 100
-            await expect(controller.addPair(hotPotFund.address, tokenArr[0].address, [10]))
-                .to.be.revertedWith('Error proportion.');
-            //init proportion > 100
-            await expect(controller.addPair(hotPotFund.address, tokenArr[1].address, [101]))
-                .to.be.revertedWith('Error proportion.');
 
             //Non-Controller operation
-            await expect(hotPotFund.addPair(tokenArr[0].address, [100]))
+            await expect(hotPotFund.addPair(tokenArr[0].address))
                 .to.be.revertedWith("Only called by Controller.");
 
-            //init proportion USDC=100
-            let transaction = await controller.addPair(hotPotFund.address, tokenArr[0].address, [100]);
+            //token1
+            let transaction = await controller.addPair(hotPotFund.address, tokenArr[0].address);
             printGasLimit(transaction, "first-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (tokens.length == 1) return;
 
-            //proportion USDC=50 USDT=50
-            transaction = await controller.addPair(hotPotFund.address, tokenArr[1].address, [50, 50]);
+            //token2
+            transaction = await controller.addPair(hotPotFund.address, tokenArr[1].address);
             printGasLimit(transaction, "second-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (tokens.length == 2) return;
 
-            //proportion USDC=25 USDT=25 WETH=50
-            transaction = await controller.addPair(hotPotFund.address, tokenArr[2].address, [25, 25, 50]);
+            //token3
+            transaction = await controller.addPair(hotPotFund.address, tokenArr[2].address);
             printGasLimit(transaction, "third-add");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             if (tokens.length == 3) return;
 
-            //proportion USDC=12.5 USDT=12.5 WETH=12.5, HotPot=50 reverted
-            await expect(controller.addPair(hotPotFund.address, tokenArr[3].address, [12, 12, 12, 50]))
-                .to.be.revertedWith('Error proportion.');
+            await expect(controller.addPair(hotPotFund.address, tokenArr[2].address))
+                .to.be.revertedWith('Add pair repeatedly.');
 
             //pairsLength = 3
             await expect(await hotPotFund.pairsLength()).to.eq(3);
-            //0:USDC=25、 1:USDT=25、2:WETH=50
-            // @ts-ignore
-            await expect(await hotPotFund.pairs(0)).to.shallowDeepEqual({
-                token: tokenArr[0].address,
-                proportion: 25
-            });
-            // @ts-ignore
-            await expect(await hotPotFund.pairs(1)).to.shallowDeepEqual({
-                token: tokenArr[1].address,
-                proportion: 25
-            });
-            // @ts-ignore
-            await expect(await hotPotFund.pairs(2)).to.shallowDeepEqual({
-                token: tokenArr[2].address,
-                proportion: 50
-            });
+            await expect(await hotPotFund.pairs(0)).to.eq(tokenArr[0].address);
+            await expect(await hotPotFund.pairs(1)).to.eq(tokenArr[1].address);
+            await expect(await hotPotFund.pairs(2)).to.eq(tokenArr[2].address);
         };
     }
 
     it('invest: fail before adding pair', async () => {
-        await expect(controller.connect(manager).invest(hotPotFund.address, INIT_DEPOSIT_AMOUNT))
+        await expect(controller.connect(manager).invest(hotPotFund.address, INIT_DEPOSIT_AMOUNT, INIT_PROPORTIONS))
             .to.be.revertedWith("Pairs is empty.");
     });
 
@@ -297,15 +275,21 @@ describe('HotPotFund', () => {
         return async () => {
             const {amount} = await builder();
             //Non-Manager operation
-            await expect(controller.connect(depositor).invest(hotPotFund.address, amount))
+            await expect(controller.connect(depositor).invest(hotPotFund.address, amount, INIT_PROPORTIONS))
                 .to.be.revertedWith("Only called by Manager.");
 
             //Not enough balance.
-            await expect(controller.connect(manager).invest(hotPotFund.address, MaxUint256))
+            await expect(controller.connect(manager).invest(hotPotFund.address, MaxUint256, INIT_PROPORTIONS))
                 .to.be.revertedWith("Not enough balance.");
+            //Index out of range
+            await expect(controller.connect(manager).invest(hotPotFund.address, amount, [25, 25, 25, 25]))
+                .to.be.revertedWith("Proportions index out of range.");
+            // Error proportion
+            await expect(controller.connect(manager).invest(hotPotFund.address, amount.div(2), [25, 25, 51]))
+                .to.be.revertedWith("Error proportion.");
 
             //invest amount
-            const transaction = await controller.connect(manager).invest(hotPotFund.address, amount);
+            const transaction = await controller.connect(manager).invest(hotPotFund.address, amount, INIT_PROPORTIONS);
             printGasLimit(transaction, "invest");
             await expect(Promise.resolve(transaction)).to.not.be.reverted;
             const remaining = await investToken.balanceOf(hotPotFund.address);
@@ -550,35 +534,6 @@ describe('HotPotFund', () => {
         return {shareAmount, isCurve: false};
     }));
 
-    function adjustPairs(builder: () => any) {
-        return async () => {
-            const {proportions} = await builder();
-            //Non-Controller operation
-            await expect(hotPotFund.connect(depositor).adjustPairs(proportions))
-                .to.be.revertedWith("Only called by Controller.");
-
-            //error index
-            await expect(controller.adjustPairs(hotPotFund.address, [35, 15]))
-                .to.be.revertedWith("Pairs index out of range.");
-            await expect(controller.adjustPairs(hotPotFund.address, [35, 15, 25, 25]))
-                .to.be.revertedWith("Pairs index out of range.");
-            //error proportion
-            await expect(controller.adjustPairs(hotPotFund.address, [35, 15, 61]))
-                .to.be.revertedWith("Error proportion.");
-
-            //USDC up 10 proportion, USDT down 10 proportion
-            const transaction = await controller.adjustPairs(hotPotFund.address, proportions);
-            printGasLimit(transaction, "adjustPairs");
-            await expect(Promise.resolve(transaction)).to.not.be.reverted;
-        }
-    }
-
-    it('adjustPairs', adjustPairs(() => {
-        return {
-            proportions: [35, 15, 50]
-        };
-    }));
-
     it('setSwapPath: Curve before reBalance', setSwapPath(async () => {
         return {
             tokenIn: investToken,
@@ -600,7 +555,7 @@ describe('HotPotFund', () => {
             const {addIndex, removeIndex, removeRatio} = await builder();
             const fundTokenAddr = hotPotFund.token ? await hotPotFund.token() : fixture.tokenWETH.address;
 
-            const removeTokenAddr = (await hotPotFund.pairs(removeIndex)).token;
+            const removeTokenAddr = await hotPotFund.pairs(removeIndex);
             const removePair = await getPair(fixture.factory, fundTokenAddr, removeTokenAddr);
             const removePairLiquidity = await pairLiquidityOf(removePair, removeIndex);
 
@@ -611,8 +566,6 @@ describe('HotPotFund', () => {
                 .to.be.revertedWith("Only called by Controller.");
 
             //error index
-            await expect(controller.reBalance(hotPotFund.address, 1, 1, 101))
-                .to.be.revertedWith("Pairs index out of range.");
             await expect(controller.reBalance(hotPotFund.address, 1, 5, 101))
                 .to.be.revertedWith("Pairs index out of range.");
             //error liquidity
@@ -636,24 +589,21 @@ describe('HotPotFund', () => {
     }));
 
     it("removePair: remove pair_1", async () => {
-        const downIndex = removeIndex;
-        const proportions = [50, 50, 50];
-        proportions[downIndex] = 0;
         await sleep(1);
         // await printPairsStatus(hotPotFund);
-        await expect(controller.adjustPairs(hotPotFund.address, proportions))
-            .to.not.be.reverted;
-        const transaction = await controller.removePair(hotPotFund.address, downIndex);
+        await expect(controller.connect(manager).removePair(hotPotFund.address, 1e4))
+            .to.be.revertedWith("Pairs index out of range.");
+        const transaction = await controller.connect(manager).removePair(hotPotFund.address, removeIndex);
         printGasLimit(transaction, "removePair");
         if (investToken.address != fixture.tokenWETH.address) {
             await expect(Promise.resolve(transaction))
-                .to.emit(tokens[downIndex], "Approval")
+                .to.emit(tokens[removeIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.router.address, 0)
-                .to.emit(tokens[downIndex], "Approval")
+                .to.emit(tokens[removeIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.curve.address, 0)
         } else {
             await expect(Promise.resolve(transaction))
-                .to.emit(tokens[downIndex], "Approval")
+                .to.emit(tokens[removeIndex], "Approval")
                 .withArgs(hotPotFund.address, fixture.router.address, 0);
         }
     });
@@ -665,7 +615,7 @@ describe('HotPotFund', () => {
         // console.log(`tokens[${removeIndex}] approve hotPotFund to router balance: ${await tokens[removeIndex].allowance(hotPotFund.address, fixture.router.address)}`);
         // console.log(`tokens[${removeIndex}] approve hotPotFund to curve  balance: ${await tokens[removeIndex].allowance(hotPotFund.address, fixture.curve.address)}`);
 
-        const transaction = await controller.addPair(hotPotFund.address, tokens[removeIndex].address, [25, 25, 50]);
+        const transaction = await controller.addPair(hotPotFund.address, tokens[removeIndex].address);
         printGasLimit(transaction, "addPair");
         await expect(Promise.resolve(transaction)).to.not.be.reverted;
     });

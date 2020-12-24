@@ -115,15 +115,15 @@ describe('HotPotController', () => {
             const {token1, token2} = await builder();
 
             //Non-Manager operation
-            await expect(controller.connect(depositor).addPair(hotPotFund.address, token1.address, [100]))
+            await expect(controller.connect(depositor).addPair(hotPotFund.address, token1.address))
                 .to.be.revertedWith("Only called by Manager.");
 
-            //init proportion token1=100
-            await expect(controller.addPair(hotPotFund.address, token1.address, [100]))
+            //add pair1
+            await expect(controller.addPair(hotPotFund.address, token1.address))
                 .to.not.be.reverted;
 
-            //proportion token1=50、poo2=50
-            await expect(controller.addPair(hotPotFund.address, token2.address, [50, 50]))
+            // add pair2
+            await expect(controller.addPair(hotPotFund.address, token2.address))
                 .to.not.be.reverted;
         }
     }
@@ -165,49 +165,30 @@ describe('HotPotController', () => {
 
     function invest(builder: () => any) {
         return async () => {
-            const {amount} = await builder();
+            const {amount, proportions} = await builder();
             //Non-Manager operation
-            await expect(controller.connect(depositor).invest(hotPotFund.address, amount))
+            await expect(controller.connect(depositor).invest(hotPotFund.address, amount, proportions))
                 .to.be.revertedWith("Only called by Manager.");
 
             //invest amount
-            await expect(controller.connect(manager).invest(hotPotFund.address, amount))
+            await expect(controller.connect(manager).invest(hotPotFund.address, amount, proportions))
                 .to.not.be.reverted;
         }
     }
 
     it('invest', invest(async () => {
         const amount = INIT_DEPOSIT_AMOUNT;
+        const proportions = [50, 50];
         await sleep(1);
-        return {amount}
+        return {amount, proportions}
     }));
-
-    function adjustPairs(builder: () => any) {
-        return async () => {
-            const {proportions} = await builder();
-            //Non-Manager operation
-            await expect(controller.connect(depositor).adjustPairs(hotPotFund.address, proportions))
-                .to.be.revertedWith("Only called by Manager.");
-
-            //USDC up 10 proportion, USDT down 10 proportion
-            await expect(controller.adjustPairs(hotPotFund.address, proportions))
-                .to.not.be.reverted;
-        }
-    }
-
-    it('adjustPairs', adjustPairs(() => {
-        return {
-            proportions:[60, 40]
-        };
-    }));
-
 
     function reBalance(builder: () => any) {
         return async () => {
             const {addIndex, removeIndex} = await builder();
 
-            const addTokenAddr = (await hotPotFund.pairs(addIndex)).token;
-            const removeTokenAddr = (await hotPotFund.pairs(removeIndex)).token;
+            const addTokenAddr = await hotPotFund.pairs(addIndex);
+            const removeTokenAddr = await hotPotFund.pairs(removeIndex);
 
             const fundTokenAddr = hotPotFund.token ? await hotPotFund.token() : fixture.tokenWETH.address;
             // const addPair = await getPair(fixture.factory, fundTokenAddr, addTokenAddr);
