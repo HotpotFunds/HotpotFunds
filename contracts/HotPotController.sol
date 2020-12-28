@@ -85,15 +85,6 @@ contract HotPotController is ReentrancyGuard {
         IHotPotFund(fund).reBalance(add_index, remove_index, liquidity);
     }
 
-    function setSwapPath(
-        address fund,
-        address tokenIn,
-        address tokenOut,
-        IHotPotFund.SwapPath path
-    ) external onlyManager {
-        IHotPotFund(fund).setSwapPath(tokenIn, tokenOut, path);
-    }
-
     function mineUNI(address fund, address pair) external onlyManager {
         IHotPotFund(fund).mineUNI(pair);
     }
@@ -119,5 +110,9 @@ contract HotPotController is ReentrancyGuard {
     function setTrustedToken(address token, bool isTrusted) external onlyGovernance {
         trustedToken[token] = isTrusted;
         emit ChangeTrustedToken(token, isTrusted);
+    }
+
+    function setCurvePool(address fund, address token, address curvePool, int128 N_COINS) external onlyGovernance {
+        IHotPotFund(fund).setCurvePool(token, curvePool, N_COINS);
     }
 }

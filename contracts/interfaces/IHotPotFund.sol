@@ -1,8 +1,6 @@
 pragma solidity >=0.5.0;
 
 interface IHotPotFund {
-    enum SwapPath { UNISWAP, CURVE }
-
     event Approval(address indexed owner, address indexed spender, uint value);
     event Transfer(address indexed from, address indexed to, uint value);
     event Deposit(address indexed owner, uint amount, uint share);
@@ -40,7 +38,7 @@ interface IHotPotFund {
     function addPair(address _token) external;
     function removePair(uint index) external;
     function reBalance(uint add_index, uint remove_index, uint liquidity) external;
-    function setSwapPath(address tokenIn, address tokenOut, SwapPath path) external;
+    function setCurvePool(address _token, address _curvePool, int128 N_COINS) external;
 
     function setUNIPool(address pair, address _uniPool) external;
     function mineUNI(address pair) external;

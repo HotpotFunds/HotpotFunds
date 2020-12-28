@@ -58,7 +58,6 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     function deposit() public nonReentrant payable returns(uint share) {
         require(msg.value > 0, 'Are you kidding me?');
         uint amount = msg.value;
-        // 以下两行代码的顺序非常重要：必须先缓存总资产，然后再转账. 否则计算会出错.
         uint _total_assets = totalAssets();
         IWETH(WETH).deposit.value(amount)();
 
@@ -96,7 +95,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         for(uint i=0; i<len; i++){
             if(proportions[i] == 0) continue;
             _whole = _whole.add(proportions[i]);
-            
+
             uint amount0 = (amount.mul(proportions[i]).div(DIVISOR)) >> 1;
             if(amount0 == 0) continue;
 
@@ -108,22 +107,14 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
                 0, 0,
                 address(this), block.timestamp
             );
-            /**
-            一般而言，由于存在交易滑点和手续费，交易所得token1的数量会少于流动池中(token0:token1)比率
-            所需的token1数量. 所以，token1会全部加入流动池，而基金本币(token0)会剩余一点.
-            但依然存在特殊情况: 当交易路径是curve，同时curve中的价格比uniswap上的交易价格低，那么得到
-            的token1数量就有可能超过流动池中(token0:token1)比率所需的token1数量.
-            如果出现这种特殊情况，token1会剩余，需要将多余的token1换回token0.
-            */
-            if(amount1 > amountB) {
-                _swap(token1, token0, amount1.sub(amountB));
-            }
+
+            if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
         }
         require(_whole == DIVISOR, 'Error proportion.');
     }
 
     function setUNIPool(address pair, address _uniPool) external onlyController {
-        require(pair!= address(0) && _uniPool!= address(0), "Invalid args address.");
+        require(pair!= address(0) && _uniPool!= address(0), "Invalid address.");
         if(uniPool[pair] != address(0)){
             _withdrawStaking(IUniswapV2Pair(pair), totalSupply);
         }
@@ -238,7 +229,6 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
             if(reward > 0) IERC20(UNI).transfer(user, reward);
         }
 
-        //用户赚钱才是关键!
         investment = investmentOf[user].mul(share).div(balanceOf[user]);
         if(amount > investment){
             uint _fee = (amount.sub(investment)).mul(FEE).div(DIVISOR);
@@ -252,7 +242,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     }
 
     function assets(uint index) public view returns(uint _assets) {
-        require(index < pairs.length, 'Pairs index out of range.');
+        require(index < pairs.length, 'Pair index out of range.');
         address token0 = WETH;
         address token1 = pairs[index];
         IUniswapV2Pair pair = IUniswapV2Pair(IUniswapV2Factory(UNISWAP_FACTORY).getPair(token0, token1));
@@ -285,8 +275,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
     }
 
     /**
-    * @notice
-    * 添加流动池后，只影响后续投资，没有调整已有的投资。如果要调整已投入的流动池，请调用reBalance函数.
+    * @notice 添加流动池.
     */
     function addPair(address _token) external onlyController {
         address pair = IUniswapV2Factory(UNISWAP_FACTORY).getPair(WETH, _token);
@@ -298,7 +287,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         IUniswapV2Pair(pair).approve(UNISWAP_V2_ROUTER, 2**256-1);
 
         for(uint i = 0; i < pairs.length; i++) {
-            require(pairs[i] != _token, 'Add pair repeatedly.');
+            require(pairs[i] != _token, 'Pair existed.');
         }
         pairs.push(_token);
     }
@@ -312,7 +301,7 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         uint remove_index,
         uint liquidity
     ) external onlyController {
-        require(remove_index < pairs.length, 'Pairs index out of range.');
+        require(remove_index < pairs.length, 'Pair index out of range.');
 
         //撤出&兑换
         address token0 = WETH;
@@ -348,16 +337,14 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
         );
 
         //处理dust. 如果有的话
-        if(amount1 > amountB) {
-            _swap(token1, token0, amount1.sub(amountB));
-        }
+        if(amount1 > amountB) _swap(token1, token0, amount1.sub(amountB));
     }
 
     /**
-    * @notice 移除指定的流动池.
+    * @notice 移除流动池.
      */
     function removePair(uint index) external onlyController {
-        require(index < pairs.length, 'Pairs index out of range.');
+        require(index < pairs.length, 'Pair index out of range.');
 
         //撤出&兑换
         address token0 = WETH;

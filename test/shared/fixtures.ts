@@ -221,10 +221,10 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
 
     // deploy curve
     const curve = await deployContract(wallet, CurveMock, [[tokenDAI.address, tokenUSDC.address, tokenUSDT.address]], overrides);
-    // initialize curve sUSD pair
-    await tokenDAI._mint_for_testing(curve.address, INIT_PAIR_LP_AMOUNT_18);
-    await tokenUSDC._mint_for_testing(curve.address, INIT_PAIR_LP_AMOUNT_6);
-    await tokenUSDT._mint_for_testing(curve.address, INIT_PAIR_LP_AMOUNT_6);
+    // initialize curve
+    await tokenDAI._mint_for_testing(curve.address, expandTo18Decimals(1000 * 1e4));
+    await tokenUSDC._mint_for_testing(curve.address, expandTo6Decimals(1000 * 1e4));
+    await tokenUSDT._mint_for_testing(curve.address, expandTo6Decimals(1000 * 1e4));
 
     async function createPairWithEthAndInit(tokenA: Contract) {
         await factory.createPair(tokenA.address, tokenWETH.address, overrides);
@@ -313,7 +313,7 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
     await hotPotController.setTrustedToken(tokenUSDT.address, true);
     await hotPotController.setTrustedToken(tokenHotPot.address, true);
     // deploy HotPotFunds
-    const commonInitArgs = [hotPotController.address, factory.address, router.address, curve.address, tokenUNI.address, tokenDAI.address, tokenUSDC.address, tokenUSDT.address];
+    const commonInitArgs = [hotPotController.address, factory.address, router.address, tokenUNI.address];
     const hotPotFundDAI = await deployContract(wallet, HotPotFund,
         [tokenDAI.address, ...commonInitArgs], overrides);
     const hotPotFundUSDC = await deployContract(wallet, HotPotFund,
@@ -321,7 +321,7 @@ export async function HotPotFixture(provider: Web3Provider, [wallet]: Wallet[]):
     const hotPotFundUSDT = await deployContract(wallet, HotPotFund,
         [tokenUSDT.address, ...commonInitArgs], overrides);
     const hotPotFundETH = await deployContract(wallet, HotPotFundETH,
-        [tokenWETH.address, hotPotController.address, factory.address, router.address, tokenUNI.address], overrides);
+        [tokenWETH.address, ...commonInitArgs], overrides);
 
     // deploy stakingRewards
     const stakingRewardsDAI = await deployContract(wallet, StakingRewards,

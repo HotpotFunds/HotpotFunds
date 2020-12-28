@@ -1,5 +1,4 @@
 pragma solidity >=0.5.0;
-import './IHotPotFund.sol';
 
 interface IHotPotController {
     function hotpot() external view returns (address);
@@ -13,7 +12,6 @@ interface IHotPotController {
     function addPair(address fund, address token) external;
     function removePair(address fund, uint index) external;
     function reBalance(address fund, uint add_index, uint remove_index, uint liquidity) external;
-    function setSwapPath(address fund, address tokenIn, address tokenOut, IHotPotFund.SwapPath path) external;
     function mineUNI(address fund, address pair) external;
     function mineUNIAll(address fund) external;
 
@@ -22,4 +20,5 @@ interface IHotPotController {
 
     function setUNIPool(address fund, address pair, address uniPool) external;
     function setTrustedToken(address token, bool isTrusted) external;
+    function setCurvePool(address fund, address token, address curvePool, int128 N_COINS) external;
 }

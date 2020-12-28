@@ -35,11 +35,14 @@ describe('HotPotController', () => {
     let INIT_DEPOSIT_AMOUNT: BigNumber;
     let INIT_HARVEST_AMOUNT: BigNumber;
     let minePair: Contract;
+    let curvePool: Contract;
+    const N_COINS = 3;
 
     before(async () => {
         fixture = await loadFixture(HotPotFixture);
         controller = fixture.hotPotController;
         tokenHotPot = fixture.tokenHotPot;
+        curvePool = fixture.curve;
 
         const TOKEN_TYPE = "DAI";//case ETH/DAI/USDT/USDC
         hotPotFund = (<any>fixture)["hotPotFund" + TOKEN_TYPE];
@@ -132,34 +135,31 @@ describe('HotPotController', () => {
         return {token1, token2};
     }));
 
-    function setSwapPath(builder: () => any) {
+    function setCurvePool(builder: () => any) {
         return async () => {
             if (investToken.address == fixture.tokenWETH.address) return;
 
-            const {tokenIn, tokenOut, path} = await builder();
-            //Non-Manager operation
-            await expect(controller.connect(depositor).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
-                .to.be.revertedWith("Only called by Manager.");
+            const {token, curvePoolAddr} = await builder();
+            //Non-Governance operation
+            await expect(controller.connect(depositor).setCurvePool(hotPotFund.address, token.address, curvePoolAddr, N_COINS))
+                .to.be.revertedWith("Only called by Governance.");
 
-            //DAi->USDC = Uniswap(0)
-            await expect(controller.connect(manager).setSwapPath(hotPotFund.address, tokenIn.address, tokenOut.address, path))
+            await expect(controller.connect(governance).setCurvePool(hotPotFund.address, token.address, curvePoolAddr, N_COINS))
                 .to.not.be.reverted;
         }
     }
 
-    it('setSwapPath: Uniswap', setSwapPath(async () => {
+    it('setCurvePool: token1 Uniswap', setCurvePool(async () => {
         return {
-            tokenIn: investToken,
-            tokenOut: token1,
-            path: 0 //Uniswap(0) Curve(1)
+            token: token1,
+            curvePoolAddr: AddressZero,
         }
     }));
 
-    it('setSwapPath: Curve', setSwapPath(async () => {
+    it('setCurvePool: token2 Curve', setCurvePool(async () => {
         return {
-            tokenIn: investToken,
-            tokenOut: token2,
-            path: 1 //Uniswap(0) Curve(1)
+            token: token2,
+            curvePoolAddr: curvePool.address,
         }
     }));
 
