@@ -29,7 +29,7 @@ interface IHotPotFund {
 
     function pairs(uint index) external view returns (address);
     function pairsLength() external view returns(uint);
-    function paths(address tokenIn, address tokenOut) external view returns(uint);
+    function curvePool(address token) external view returns(address);
 
     function deposit(uint amount) external returns(uint share);
     function withdraw(uint share) external returns(uint amount);

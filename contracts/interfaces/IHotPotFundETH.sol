@@ -28,7 +28,6 @@ interface IHotPotFundETH {
 
     function pairs(uint index) external view returns (address);
     function pairsLength() external view returns(uint);
-    function paths(address tokenIn, address tokenOut) external view returns(uint);
 
     function deposit() external payable returns(uint share);
     function withdraw(uint share) external returns(uint amount);
