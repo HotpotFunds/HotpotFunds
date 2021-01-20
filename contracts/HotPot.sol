@@ -70,7 +70,7 @@ contract HotPot {
 
     function burnFrom(address from, uint value) external returns (bool) {
         allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
-        _burn(msg.sender, value);
+        _burn(from, value);
         return true;
     }
 }

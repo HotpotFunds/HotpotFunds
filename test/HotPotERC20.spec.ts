@@ -1,6 +1,6 @@
 import chai, {expect} from 'chai'
 import {Contract} from 'ethers'
-import {MaxUint256} from 'ethers/constants'
+import {AddressZero, MaxUint256} from 'ethers/constants'
 import {deployContract, MockProvider, solidity} from 'ethereum-waffle'
 
 import {expandTo18Decimals} from './shared/utilities'
@@ -102,5 +102,30 @@ describe('HotPotERC20', () => {
         expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
         //receiver balanceOf = TEST_AMOUNT
         expect(await token.balanceOf(other.address)).to.eq(TEST_AMOUNT)
+    });
+
+    it('burn', async () => {
+        //wallet burn amount = TEST_AMOUNT
+        await expect(token.burn(TEST_AMOUNT))
+            .to.emit(token, 'Transfer')
+            .withArgs(wallet.address, AddressZero, TEST_AMOUNT);
+
+        //wallet balanceOf=TOTAL_SUPPLY-TEST_AMOUNT
+        expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
+    });
+
+    it('burnFrom', async () => {
+        //approve TEST_AMOUNT
+        await token.approve(other.address, TEST_AMOUNT);
+
+        //burnFrom TEST_AMOUNT
+        await expect(token.connect(other).burnFrom(wallet.address, TEST_AMOUNT))
+            .to.emit(token, 'Transfer')
+            .withArgs(wallet.address, AddressZero, TEST_AMOUNT);
+
+        //allowance = 0
+        expect(await token.allowance(wallet.address, other.address)).to.eq(0);
+        //owner balanceOf = TOTAL_SUPPLY - TEST_AMOUNT
+        expect(await token.balanceOf(wallet.address)).to.eq(TOTAL_SUPPLY.sub(TEST_AMOUNT));
     });
 });
