@@ -17,8 +17,8 @@ contract HotPotFundETH is ReentrancyGuard, HotPotFundERC20 {
 
     address constant UNISWAP_FACTORY = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
     address constant UNISWAP_V2_ROUTER = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
-    address constant WETH = 0xc778417E063141139Fce010982780140Aa0cD5Ab;
-    address constant UNI = 0x4047fbe32235E74C1264567D80D28d44A50c1dDb;
+    address constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+    address constant UNI = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984;
 
     uint constant DIVISOR = 100;
     uint constant FEE = 20;
